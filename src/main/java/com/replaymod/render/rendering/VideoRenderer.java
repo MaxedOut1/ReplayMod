@@ -7,11 +7,7 @@ import com.replaymod.core.utils.WrappedTimer;
 import com.replaymod.core.versions.MCVer;
 import com.replaymod.pathing.player.AbstractTimelinePlayer;
 import com.replaymod.pathing.properties.TimestampProperty;
-import com.replaymod.render.CameraPathExporter;
-import com.replaymod.render.PNGWriter;
-import com.replaymod.render.RenderSettings;
-import com.replaymod.render.ReplayModRender;
-import com.replaymod.render.FFmpegWriter;
+import com.replaymod.render.*;
 import com.replaymod.render.blend.BlendState;
 import com.replaymod.render.capturer.RenderInfo;
 import com.replaymod.render.events.ReplayRenderCallback;
@@ -94,6 +90,7 @@ public class VideoRenderer implements RenderInfo {
     private final Pipeline renderingPipeline;
     private final FFmpegWriter ffmpegWriter;
     private final CameraPathExporter cameraPathExporter;
+    private final AfterEffectsCameraPathExporter afterEffectsCameraPathExporter;
 
     private int fps;
     private boolean mouseWasGrabbed;
@@ -162,6 +159,12 @@ public class VideoRenderer implements RenderInfo {
             this.cameraPathExporter = new CameraPathExporter(settings);
         } else {
             this.cameraPathExporter = null;
+        }
+
+        if (settings.isAfterEffectsCameraPathExport()) {
+            this.afterEffectsCameraPathExporter = new AfterEffectsCameraPathExporter(settings);
+        } else {
+            this.afterEffectsCameraPathExporter = null;
         }
     }
 
@@ -291,6 +294,18 @@ public class VideoRenderer implements RenderInfo {
     }
 
     @Override
+    public void updatePostRender(float tickDelta) {
+
+        if (cameraPathExporter != null) {
+            cameraPathExporter.recordFrame(tickDelta);
+        }
+
+        if (afterEffectsCameraPathExporter != null) {
+            afterEffectsCameraPathExporter.recordFrame(tickDelta);
+        }
+    }
+
+    @Override
     public RenderSettings getRenderSettings() {
         return settings;
     }
@@ -351,6 +366,10 @@ public class VideoRenderer implements RenderInfo {
             cameraPathExporter.setup(totalFrames);
         }
 
+        if (afterEffectsCameraPathExporter != null) {
+            afterEffectsCameraPathExporter.setup(totalFrames);
+        }
+
         gui.toMinecraft().init(mc, mc.getWindow().getScaledWidth(), mc.getWindow().getScaledHeight());
 
         forceChunkLoadingHook = new ForceChunkLoadingHook(mc.worldRenderer);
@@ -388,6 +407,14 @@ public class VideoRenderer implements RenderInfo {
         if (!hasFailed() && cameraPathExporter != null) {
             try {
                 cameraPathExporter.finish();
+            } catch (IOException e) {
+                setFailure(e);
+            }
+        }
+
+        if (!hasFailed() && afterEffectsCameraPathExporter != null) {
+            try {
+                afterEffectsCameraPathExporter.finish();
             } catch (IOException e) {
                 setFailure(e);
             }
