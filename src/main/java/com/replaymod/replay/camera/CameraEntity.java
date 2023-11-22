@@ -237,7 +237,18 @@ public class CameraEntity
      * @param fov The fov to set
      */
     public void setFov(Float fov) {
+        //#if MC<11900
         getMinecraft().options.fov = fov;
+        //#else
+        //$$ MinecraftClient client = MinecraftClient.getInstance();
+        //$$ if (client == null) {
+        //$$     return;
+        //$$ }
+        //$$ if (client.player == null) {
+        //$$     return;
+        //$$ }
+        //$$ client.options.getFov().setValue(Math.round(fov));
+        //#endif
         getMinecraft().worldRenderer.scheduleTerrainUpdate();
     }
 
